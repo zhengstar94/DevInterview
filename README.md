@@ -16,6 +16,10 @@ DevInterview helps overseas technical job seekers quickly generate targeted inte
 - **Resume Matching Analysis**: Upload PDF resume for JD match analysis
   - Match score (0-100%)
   - Matched / Partial Match / Missing skills grouped display
+- **History**: Save and view past generation results locally
+  - Auto-save on successful generation
+  - Expandable history items
+  - Delete individual items or clear all
 - **Clean UI**: Single page application, desktop-focused
 
 ## Tech Stack
@@ -75,11 +79,15 @@ src/
 │   ├── api/
 │   │   ├── analyze-match/
 │   │   │   └── route.ts    # Resume matching API
-│   │   └── generate/
-│   │       └── route.ts    # Question generation API
+│   │   ├── generate/
+│   │   │   └── route.ts    # Question generation API
+│   │   └── history/
+│   │       └── route.ts    # History API
 │   ├── globals.css
 │   ├── layout.tsx
 │   └── page.tsx           # Main page with tabs
+├── data/
+│   └── history.json       # Local history storage (gitignored)
 ├── lib/
 │   └── pdf.ts             # PDF parsing utilities
 ├── .env.example           # Environment template

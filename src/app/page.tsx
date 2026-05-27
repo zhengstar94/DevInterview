@@ -28,7 +28,16 @@ interface AnalysisResult {
   partial: MatchItem[];
 }
 
-type Tab = "questions" | "resume";
+// Types for History
+interface HistoryRecord {
+  id: string;
+  type: "questions" | "analysis";
+  date: string;
+  jd: string;
+  result: string;
+}
+
+type Tab = "questions" | "resume" | "history";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("questions");
@@ -46,6 +55,11 @@ export default function Home() {
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [errorAnalysis, setErrorAnalysis] = useState("");
 
+  // History State
+  const [history, setHistory] = useState<HistoryRecord[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
   // Load resume from localStorage on mount
   useEffect(() => {
     const saved = getResumeFromStorage();
@@ -53,6 +67,58 @@ export default function Home() {
       setResume(saved);
     }
   }, []);
+
+  // Load history when tab is opened
+  useEffect(() => {
+    if (activeTab === "history") {
+      fetchHistory();
+    }
+  }, [activeTab]);
+
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch("/api/history");
+      const data = await response.json();
+      if (response.ok) {
+        setHistory(data.records || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const saveToHistory = async (type: "questions" | "analysis", result: string) => {
+    try {
+      await fetch("/api/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, jd, result }),
+      });
+    } catch (err) {
+      console.error("Failed to save to history:", err);
+    }
+  };
+
+  const deleteHistoryItem = async (id: string) => {
+    try {
+      const response = await fetch(`/api/history?id=${id}`, { method: "DELETE" });
+      if (response.ok) {
+        setHistory(history.filter((item) => item.id !== id));
+      }
+    } catch (err) {
+      console.error("Failed to delete history:", err);
+    }
+  };
+
+  const clearAllHistory = async () => {
+    for (const item of history) {
+      await fetch(`/api/history?id=${item.id}`, { method: "DELETE" });
+    }
+    setHistory([]);
+  };
 
   // Handle PDF Upload
   const handleUploadResume = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,6 +178,7 @@ export default function Home() {
       }
 
       setAnalysisResult(data.result);
+      await saveToHistory("analysis", JSON.stringify(data.result));
     } catch (err) {
       setErrorAnalysis(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -144,6 +211,7 @@ export default function Home() {
       }
 
       setQuestions(data.questions);
+      await saveToHistory("questions", JSON.stringify(data.questions));
     } catch (err) {
       setErrorQuestions(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -155,6 +223,11 @@ export default function Home() {
     clearResumeFromStorage();
     setResume(null);
     setAnalysisResult(null);
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString();
   };
 
   return (
@@ -186,6 +259,16 @@ export default function Home() {
             }`}
           >
             简历匹配分析
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === "history"
+                ? "bg-white text-black shadow-sm"
+                : "text-zinc-600 hover:text-zinc-900"
+            }`}
+          >
+            历史记录
           </button>
         </div>
 
@@ -264,7 +347,7 @@ export default function Home() {
               </div>
             )}
           </>
-        ) : (
+        ) : activeTab === "resume" ? (
           <>
             {/* Resume Upload Section */}
             <div className="mb-8">
@@ -401,6 +484,152 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* History Tab */}
+            {history.length > 0 && (
+              <div className="mb-4 flex justify-end">
+                <button
+                  onClick={clearAllHistory}
+                  className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  清空全部
+                </button>
+              </div>
+            )}
+
+            {loadingHistory ? (
+              <div className="text-center text-zinc-500 py-8">Loading...</div>
+            ) : history.length === 0 ? (
+              <div className="text-center text-zinc-500 py-8">No history yet / 暂无历史记录</div>
+            ) : (
+              <div className="space-y-4">
+                {history.map((record) => (
+                  <div key={record.id} className="rounded-lg border border-zinc-200 bg-white">
+                    <div
+                      className="flex cursor-pointer items-center justify-between p-4"
+                      onClick={() => setExpandedId(expandedId === record.id ? null : record.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`rounded-full px-2 py-1 text-xs font-medium ${
+                            record.type === "questions"
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-green-100 text-green-700"
+                          }`}
+                        >
+                          {record.type === "questions" ? "技术题" : "匹配分析"}
+                        </span>
+                        <span className="text-sm text-zinc-500">
+                          {formatDate(record.date)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-zinc-400">
+                          {expandedId === record.id ? "▲" : "▼"}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteHistoryItem(record.id);
+                          }}
+                          className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-50"
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                    <div className="border-t border-zinc-100 px-4 py-2 text-sm text-zinc-600">
+                      JD: {record.jd.substring(0, 100)}{record.jd.length > 100 ? "..." : ""}
+                    </div>
+                    {expandedId === record.id && (
+                      <div className="border-t border-zinc-100 p-4">
+                        {record.type === "questions" ? (
+                          <div className="space-y-6">
+                            {JSON.parse(record.result).map((q: Question, idx: number) => (
+                              <div key={idx} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                                <div className="mb-2 flex items-center gap-2">
+                                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                                    q.category === "Core Tech" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                                  }`}>{q.category}</span>
+                                  <span className="text-xs font-medium text-zinc-500">{q.tech}</span>
+                                </div>
+                                <div className="mb-2"><span className="font-semibold text-zinc-900">Q: </span><span className="text-zinc-700">{q.q}</span></div>
+                                <div className="mb-2"><span className="font-semibold text-zinc-900">问: </span><span className="text-zinc-700">{q.ask}</span></div>
+                                <div className="mb-2"><span className="font-semibold text-zinc-900">A: </span><span className="text-zinc-700">{q.a}</span></div>
+                                <div><span className="font-semibold text-zinc-900">答: </span><span className="text-zinc-700">{q.answer}</span></div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-6">
+                            {(() => {
+                              const result = JSON.parse(record.result);
+                              return (
+                                <>
+                                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                                    <div className="mb-2 flex items-center justify-between">
+                                      <span className="font-semibold text-zinc-900">Match Score / 匹配度</span>
+                                      <span className="text-2xl font-bold text-black">{result.score}%</span>
+                                    </div>
+                                    <div className="h-3 w-full overflow-hidden rounded-full bg-zinc-200">
+                                      <div className="h-full rounded-full bg-black" style={{ width: `${result.score}%` }} />
+                                    </div>
+                                  </div>
+                                  {result.matched?.length > 0 && (
+                                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                                      <h3 className="mb-4 flex items-center gap-2 font-semibold text-green-700"><span>✓</span> Matched / 已满足</h3>
+                                      <div className="space-y-4">
+                                        {result.matched.map((item: MatchItem, idx: number) => (
+                                          <div key={idx} className="border-b border-zinc-100 pb-3 last:border-0 last:pb-0">
+                                            <p className="font-medium text-zinc-900">{item.item}</p>
+                                            <p className="text-sm text-zinc-600">{item.en}</p>
+                                            <p className="text-sm text-zinc-500">{item.cn}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {result.partial?.length > 0 && (
+                                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                                      <h3 className="mb-4 flex items-center gap-2 font-semibold text-yellow-700"><span>⚠</span> Partial Match / 部分匹配</h3>
+                                      <div className="space-y-4">
+                                        {result.partial.map((item: MatchItem, idx: number) => (
+                                          <div key={idx} className="border-b border-zinc-100 pb-3 last:border-0 last:pb-0">
+                                            <p className="font-medium text-zinc-900">{item.item}</p>
+                                            <p className="text-sm text-zinc-600">{item.en}</p>
+                                            <p className="text-sm text-zinc-500">{item.cn}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {result.missing?.length > 0 && (
+                                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                                      <h3 className="mb-4 flex items-center gap-2 font-semibold text-red-700"><span>✗</span> Missing / 缺少技能</h3>
+                                      <div className="space-y-4">
+                                        {result.missing.map((item: MatchItem, idx: number) => (
+                                          <div key={idx} className="border-b border-zinc-100 pb-3 last:border-0 last:pb-0">
+                                            <p className="font-medium text-zinc-900">{item.item}</p>
+                                            <p className="text-sm text-zinc-600">{item.en}</p>
+                                            <p className="text-sm text-zinc-500">{item.cn}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </>
