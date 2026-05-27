@@ -1,28 +1,29 @@
 # DevInterview
 
-海外技术面试题库生成器 - 基于 AI 的智能面试题生成工具
+AI-powered Technical Interview Question Generator for Overseas Job Seekers
 
 ## About
 
-DevInterview 帮助海外技术求职者快速生成针对性的面试题目。只需粘贴职位描述 (JD)，即可获得定制的双语面试问答。
+DevInterview helps overseas technical job seekers quickly generate targeted interview questions. Simply paste a job description (JD), and get customized bilingual interview Q&A.
 
 ## Features
 
-- **智能解析 JD**: 自动提取核心技术栈、次要技术、行业背景和年限要求
-- **针对性出题**: 基于 JD 解析结果生成题目，不出通用题
-  - 核心技术栈: 3 道题
-  - 次要技术: 2 道题
-- **双语格式**: 题目和答案均为英文+中文
-- **简历匹配分析**: 上传 PDF 简历，与 JD 进行匹配度分析
-  - 匹配度评分 (0-100%)
-  - 已满足 / 部分匹配 / 缺少技能 分组展示
-- **简洁界面**: 单页应用，桌面端为主
+- **Smart JD Parsing**: Automatically extracts core tech stack, secondary tech, industry background, and experience requirements
+- **Targeted Questions**: Generate questions based on JD analysis, no generic questions
+  - Core Tech Stack: 3 questions
+  - Secondary Tech: 2 questions
+- **Bilingual Format**: Questions and answers in English + Chinese
+- **Resume Matching Analysis**: Upload PDF resume for JD match analysis
+  - Match score (0-100%)
+  - Matched / Partial Match / Missing skills grouped display
+- **Clean UI**: Single page application, desktop-focused
 
 ## Tech Stack
 
 - Next.js 14 (App Router)
 - Tailwind CSS
 - Anthropic AI SDK
+- pdfjs-dist for PDF parsing
 
 ## Prerequisites
 
